@@ -30,7 +30,7 @@ size_t a_start = delta_start + N - 1;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-double ref_v = 5;
+double ref_v = 50;
 
 
 class FG_eval {
@@ -59,7 +59,7 @@ class FG_eval {
     }
     //COST: delta and a difference
     for (int t = 0; t < N - 2; t++) {
-      fg[0] += 10000*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += 60000*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
       fg[0] += 100*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
