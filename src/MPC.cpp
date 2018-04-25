@@ -6,8 +6,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 25;
-double dt = 0.05;
+size_t N = 10;
+double dt = 0.1;
 
 size_t x_start = 0;
 size_t y_start = x_start + N;
@@ -32,6 +32,7 @@ const double Lf = 2.67;
 
 double ref_v = 5;
 
+
 class FG_eval {
  public:
   // Fitted polynomial coefficients
@@ -46,20 +47,20 @@ class FG_eval {
     //COST: cte, epsi, v
     for(int t=0;t<N;t++)
     {
-        fg[0] += CppAD::pow(vars[cte_start + t],2);
-        fg[0] += CppAD::pow(vars[epsi_start + t], 2);
+        fg[0] += 200*CppAD::pow(vars[cte_start + t],2);
+        fg[0] += 200*CppAD::pow(vars[epsi_start + t], 2);
         fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
     //COST: delta, a
     for(int t=0;t<N-1;t++)
     {
-        fg[0] += CppAD::pow(vars[delta_start + t], 2);
-        fg[0] += CppAD::pow(vars[a_start + t], 2);
+        fg[0] += 100*CppAD::pow(vars[delta_start + t], 2);
+        fg[0] += 10*CppAD::pow(vars[a_start + t], 2);
     }
     //COST: delta and a difference
     for (int t = 0; t < N - 2; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += 10000*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += 100*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     fg[1 + x_start] = vars[x_start];
@@ -87,8 +88,8 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> pdpsi0 = CppAD::atan(coeffs[1]);
+      AD<double> f0 = coeffs[0]+coeffs[1]*x0+coeffs[2]*pow(x0,2)+coeffs[3]*pow(x0,3);
+      AD<double> pdpsi0 = CppAD::atan(coeffs[1]+2*coeffs[2]*x0+3*coeffs[3]*x0*x0);
 
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
@@ -108,7 +109,7 @@ class FG_eval {
 MPC::MPC() {}
 MPC::~MPC() {}
 
-vector<double> MPC::Solve(Eigen::VectorXd x0, Eigen::VectorXd coeffs) {
+vector<vector<double>> MPC::Solve(Eigen::VectorXd x0, Eigen::VectorXd coeffs) {
   bool ok = true;
   size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
@@ -219,8 +220,14 @@ vector<double> MPC::Solve(Eigen::VectorXd x0, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  return {solution.x[x_start + 1],   solution.x[y_start + 1],
+    vector<double> sol;
+    for(int i=0;i<psi_start;i++)
+    {
+        sol.push_back(solution.x[i]);
+    }
+
+  return { sol,{solution.x[x_start + 1],   solution.x[y_start + 1],
           solution.x[psi_start + 1], solution.x[v_start + 1],
           solution.x[cte_start + 1], solution.x[epsi_start + 1],
-          solution.x[delta_start],   solution.x[a_start]};
+          solution.x[delta_start],   solution.x[a_start]} };
 }

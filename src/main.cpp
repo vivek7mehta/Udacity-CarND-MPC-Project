@@ -9,6 +9,7 @@
 #include "MPC.h"
 #include "json.hpp"
 
+
 // for convenience
 using json = nlohmann::json;
 
@@ -71,6 +72,7 @@ int main() {
   // MPC is initialized here!
   MPC mpc;
 
+
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -91,6 +93,8 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          double delta = j[1]["steering_angle"];
+          double a = j[1]["throttle"];
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -110,18 +114,31 @@ int main() {
             auto coeffs = polyfit(dx,dy,3) ;
             px=0;
             py=0;
+            psi =0;
 
-            double cte = -ptsy[0];
+            double cte = coeffs[0];
             double epsi = psi - atan(coeffs[1]);
 
 
             Eigen::VectorXd state(6);
+
+
+          double latency = 0.1;
+          double Lf = 2.67;
+          px = px + v * latency;
+          py = 0;
+          psi = psi + v * -delta / Lf * latency;
+          v = v + a * latency;
+          cte = cte + v * sin(epsi) * latency;
+          epsi = epsi + v * -delta / Lf * latency;
+
+
             state << px, py, psi, v, cte, epsi;
 
             auto vars = mpc.Solve(state, coeffs);
 
-          double steer_value = vars[6];
-          double throttle_value = vars[7];
+          double steer_value = vars[1][6];
+          double throttle_value = vars[1][7];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -133,8 +150,15 @@ int main() {
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
-            mpc_x_vals.push_back(vars[0]);
-            mpc_y_vals.push_back(vars[1]);
+            for(int i=0;i<10;i++)
+            {
+                mpc_x_vals.push_back(vars[0][i]);
+            }
+            for(int i=10;i<20;i++)
+            {
+                mpc_y_vals.push_back(vars[0][i]);
+            }
+
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
@@ -171,7 +195,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(100));
+          //this_thread::sleep_for(chrono::milliseconds(100));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
