@@ -8,7 +8,7 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
-### The model:
+#### The Model
 
 * Model consists of six state variables:
     * X-coordinate of car
@@ -49,3 +49,18 @@ Self-Driving Car Engineer Nanodegree Program
 
 
 * I have added weights to each cost component based on our desired behaviour. For example it will be fine if car moves slight left or right of the desired trajectory, but it will not be fine if it changes steering suddenly (otherwise car will go off the track), so we can multiply cost of `difference of steering angle of consecutive time steps` with some number greater than  1. Same way I have given weights to all the costs.
+
+#### Timestep Length and Elapsed Duration (N & dt)
+* First I decided value of T (N*dt) to 1 second which is sufficient enough but not too large because environment is changing frequently and we will only apply first actuators after that we are going to predict trajectory again. Then I tried to reduce value of dt (this will result in sufficient frequent actuations, which ensures good approximation of desired trajectory).
+* First I tried with N=25 and dt=0.05 which makes car to wobble more. Then I tried N=5 and dt=0.2 which gave better approximation then previous values but not so good when I increase speed.
+* Finally I came up with these values N=10 and dt=0.1. Which worked fine on my desired speed.
+
+#### Polynomial Fitting and MPC Preprocessing
+* Before fitting polynomial preprocessing has been done for waypoints transformation and to address latency.
+* Since `ptsx` and `ptsy` is giving trajectory coordinates in global map coordination, and simulator takes coordinates with respect to car coordinates for visualization, this geometric transformation is done before polynomial fitting. Also after this transformation car coordinates becomes (0,0), hence it becomes mathematically easier to solve optimization problem.
+*  Once this transformation is done state variables are changed to address simulator latency which is described in next section.
+*  After this preprocessing coordinates are fitted into third order polynomial using `polyfit` function.
+
+#### Model Predictive Control with Latency
+* Simulator has latency of 100ms. One way to handle this latency is that we find state of the vehicle after duration of latency. Now this becomes our new state.
+* I have taken 100ms as latency and used kinematic vehicle model equations to find state of the car after 100ms now this new state becomes my current state and I pass this state to my MPC. This is how I have handled latency of 100ms.
